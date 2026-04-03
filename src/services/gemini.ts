@@ -208,7 +208,7 @@ export async function generateSunoPrompt(
     vocoder: 'Add "robotic vocoder, Daft Punk style vocals, synthesized voice" to Style. Use [Vocoder] in lyrics.',
     autotune: 'Add "heavy autotune, modern trap vocals, pitch corrected, melodic rap" to Style. Use [Autotune] in lyrics.',
     megaphone: 'Add "megaphone effect, radio filter, lo-fi vocals, distorted telephone voice" to Style. Use [Megaphone] in lyrics.',
-    humanized: 'Add "extreme human nuances, audible breaths, vocal fry, emotional delivery, realistic phrasing, voice cracks" to Style. Suno v5.5 excels at this. Use [Breath], [Sigh], [Vocal Fry], [Voice Crack], [Emotional Crescendo] naturally between lines in the lyricsBox.'
+    humanized: 'Add "human nuances, audible breaths, vocal fry, emotional delivery, realistic phrasing" to Style. Use [Breath], [Sigh], [Vocal Fry], [Voice Crack] naturally between lines in the lyricsBox.'
   };
 
   const vocalExtrasInstruction = vocalExtras !== 'none' && vocalExtras !== 'auto' && !isInstrumental && extrasMap[vocalExtras]
@@ -260,7 +260,7 @@ Even if the user's request is simple or identical to a previous one (e.g., just 
     ? `\n\nCRITICAL REFINE MODE INSTRUCTION: The user has provided their own lyrics and wants you to REFINE them for Suno v5.5. 
     1. DO NOT change the core text of the lyrics unless there are obvious rhythmic errors.
     2. Your primary task is to INSERT structural tags ([Verse], [Chorus], etc.), vocal nuances ([Breath], [Sigh], [Vocal Fry], [Voice Crack], [Whisper], [Scream], [Laughter], [Audible Inhale]), and ad-libs between the existing lines.
-    3. Use these human-like nuances sparingly and only where they fit the emotion of the song. Suno v5.5 is highly expressive, so use dynamic tags like [Emotional Crescendo] or [Sudden Drop].
+    3. Use these human-like nuances sparingly and only where they fit the emotion of the song.
     4. Ensure the styleBox is still generated based on the overall vibe of the lyrics.`
     : "";
 
@@ -309,7 +309,6 @@ Even if the user's request is simple or identical to a previous one (e.g., just 
           - **Tempo & Key:** Specify BPM and musical key.
 
           ### SUNO V5.5 SPECIFICS:
-          - Suno v5.5 is highly expressive. Use advanced dynamic shift tags like [Sudden Drop], [Emotional Crescendo], [Acapella Break], and [Whisper to Scream].
           - Use [Break] for instrumental pauses.
           - Use [Beat Drop] or [Bass Drop] for energy transitions.
           - Use [Outro] followed by [Fade Out] and [End] for clean endings.

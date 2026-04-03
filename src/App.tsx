@@ -509,7 +509,7 @@ export default function App() {
                     id="userLyrics"
                     value={userLyrics}
                     onChange={(e) => setUserLyrics(e.target.value)}
-                    placeholder="Vložte sem své texty, které chcete vylepšit o Suno v5.5 tagy..."
+                    placeholder="Vložte sem své texty, které chcete vylepšit o Suno tagy..."
                     className="w-full h-48 bg-black/30 border border-white/10 theme-glass-inner p-5 text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_50%,transparent)] focus:border-[color-mix(in_srgb,var(--primary)_50%,transparent)] transition-colors duration-500 resize-none text-[17px] shadow-inner leading-relaxed"
                   />
                 </motion.div>
