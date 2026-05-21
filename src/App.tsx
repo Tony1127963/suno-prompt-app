@@ -14,25 +14,29 @@ declare global {
   }
 }
 
-import { generateSunoPrompt, recommendSettings, generateAlbumArt, VocalIntensity, AudioProduction, VocalExtras, VocalGender, StructureType, VocalDensity } from './services/gemini';
+import { generateSunoPrompt, recommendSettings, generateAlbumArt, VocalIntensity, AudioProduction, VocalExtras, VocalGender, StructureType, VocalDensity, Tempo, EnergyLevel, Mood } from './services/gemini';
 import { countSyllables } from './utils/syllableCounter';
 import { Theme, THEMES } from './constants';
-import { Sparkles, Copy, Check, Music, Mic2, Loader2, Mic, SlidersHorizontal, ExternalLink, ListOrdered, Settings2, Users, Wand2, Globe, AlignLeft, ChevronRight, X, Palette, Download, Hash, Search, Filter, Calendar } from 'lucide-react';
+import { Sparkles, Copy, Check, Music, Mic2, Loader2, Mic, SlidersHorizontal, ExternalLink, ListOrdered, Settings2, Users, Wand2, Globe, AlignLeft, ChevronRight, X, Palette, Download, Hash, Search, Filter, Calendar, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence, useDragControls } from 'motion/react';
 
 export default function App() {
   const [prompt, setPrompt] = useState(() => localStorage.getItem('suno-prompt') || '');
   const [mode, setMode] = useState<'generate' | 'refine'>(() => (localStorage.getItem('suno-mode') as 'generate' | 'refine') || 'generate');
   const [userLyrics, setUserLyrics] = useState(() => localStorage.getItem('suno-user-lyrics') || '');
-  const [isInstrumental, setIsInstrumental] = useState(() => {
+  const [isInstrumental, setIsInstrumental] = useState<'auto' | boolean>(() => {
     const saved = localStorage.getItem('suno-is-instrumental');
-    return saved !== null ? JSON.parse(saved) : false;
+    if (saved === '"auto"' || saved === 'auto') return 'auto';
+    return saved !== null ? JSON.parse(saved) : 'auto';
   });
   const [vocalIntensity, setVocalIntensity] = useState<VocalIntensity>(() => (localStorage.getItem('suno-vocal-intensity') as VocalIntensity) || 'auto');
   const [audioProduction, setAudioProduction] = useState<AudioProduction>(() => (localStorage.getItem('suno-audio-production') as AudioProduction) || 'auto');
   const [vocalExtras, setVocalExtras] = useState<VocalExtras>(() => (localStorage.getItem('suno-vocal-extras') as VocalExtras) || 'auto');
   const [vocalGender, setVocalGender] = useState<VocalGender>(() => (localStorage.getItem('suno-vocal-gender') as VocalGender) || 'auto');
   const [vocalDensity, setVocalDensity] = useState<VocalDensity>(() => (localStorage.getItem('suno-vocal-density') as VocalDensity) || 'auto');
+  const [tempo, setTempo] = useState<Tempo>(() => (localStorage.getItem('suno-tempo') as Tempo) || 'auto');
+  const [energyLevel, setEnergyLevel] = useState<EnergyLevel>(() => (localStorage.getItem('suno-energy-level') as EnergyLevel) || 'auto');
+  const [mood, setMood] = useState<Mood>(() => (localStorage.getItem('suno-mood') as Mood) || 'auto');
   const [languageOverride, setLanguageOverride] = useState<string>(() => localStorage.getItem('suno-language-override') || 'auto');
   const [structureType, setStructureType] = useState<StructureType>(() => (localStorage.getItem('suno-structure-type') as StructureType) || 'auto');
   const [studioGear, setStudioGear] = useState<string>(() => localStorage.getItem('suno-studio-gear') || 'auto');
@@ -69,6 +73,9 @@ export default function App() {
     vocalExtras?: string;
     vocalGender?: string;
     vocalDensity?: string;
+    tempo?: string;
+    energyLevel?: string;
+    mood?: string;
     language?: string;
     structureType?: string;
     studioGear?: string;
@@ -125,6 +132,9 @@ export default function App() {
       localStorage.setItem('suno-vocal-extras', vocalExtras);
       localStorage.setItem('suno-vocal-gender', vocalGender);
       localStorage.setItem('suno-vocal-density', vocalDensity);
+      localStorage.setItem('suno-tempo', tempo);
+      localStorage.setItem('suno-energy-level', energyLevel);
+      localStorage.setItem('suno-mood', mood);
       localStorage.setItem('suno-language-override', languageOverride);
       localStorage.setItem('suno-structure-type', structureType);
       localStorage.setItem('suno-studio-gear', studioGear);
@@ -155,7 +165,7 @@ export default function App() {
         console.error('Still failed to save history:', e2);
       }
     }
-  }, [vocalIntensity, audioProduction, vocalExtras, vocalGender, vocalDensity, languageOverride, structureType, studioGear, isAutoMode, isInstrumental, prompt, result, mode, userLyrics, history, albumArt, shouldGenerateAlbumArt]);
+  }, [vocalIntensity, audioProduction, vocalExtras, vocalGender, vocalDensity, tempo, energyLevel, mood, languageOverride, structureType, studioGear, isAutoMode, isInstrumental, prompt, result, mode, userLyrics, history, albumArt, shouldGenerateAlbumArt]);
 
   useEffect(() => {
     if (isSettingsOpen || isThemeOpen) {
@@ -174,6 +184,9 @@ export default function App() {
     setVocalExtras('auto');
     setVocalGender('auto');
     setVocalDensity('auto');
+    setTempo('auto');
+    setEnergyLevel('auto');
+    setMood('auto');
     setLanguageOverride('auto');
     setStructureType('auto');
     setStudioGear('auto');
@@ -189,18 +202,37 @@ export default function App() {
     
     setIsLoading(true);
     setError(null);
+    setResult(null);
+    setAlbumArt(null);
     try {
       let finalVocal = vocalIntensity;
       let finalProd = audioProduction;
       let finalExtras = vocalExtras;
       let finalGender = vocalGender;
       let finalDensity = vocalDensity;
-      let finalInstrumental = isInstrumental;
+      let finalTempo = tempo;
+      let finalEnergy = energyLevel;
+      let finalMood = mood;
+      let finalInstrumental = isInstrumental === 'auto' ? false : isInstrumental;
       let finalLanguage = languageOverride;
       let finalStructure: StructureType = structureType;
       let finalGear = studioGear;
 
-      if (isAutoMode) {
+      const needsRecommendation = isAutoMode || 
+        vocalIntensity === 'auto' || 
+        audioProduction === 'auto' || 
+        vocalExtras === 'auto' || 
+        vocalGender === 'auto' || 
+        vocalDensity === 'auto' || 
+        tempo === 'auto' || 
+        energyLevel === 'auto' || 
+        mood === 'auto' || 
+        languageOverride === 'auto' || 
+        structureType === 'auto' || 
+        studioGear === 'auto' ||
+        isInstrumental === 'auto';
+
+      if (needsRecommendation) {
         setLoadingStep('Analyzuji interpreta a styl (včetně jazyka a struktury)...');
         const rec = await recommendSettings(prompt);
         if (vocalIntensity === 'auto' && rec.vocalIntensity) { finalVocal = rec.vocalIntensity; }
@@ -208,9 +240,10 @@ export default function App() {
         if (vocalExtras === 'auto' && rec.vocalExtras) { finalExtras = rec.vocalExtras; }
         if (vocalGender === 'auto' && rec.vocalGender) { finalGender = rec.vocalGender; }
         if (vocalDensity === 'auto' && rec.vocalDensity) { finalDensity = rec.vocalDensity; }
-        
-        // We no longer override finalInstrumental here because it's a direct user toggle in the UI.
-        // Overriding it causes the user's explicit choice to be ignored if the AI guesses wrong.
+        if (tempo === 'auto' && rec.tempo) { finalTempo = rec.tempo; }
+        if (energyLevel === 'auto' && rec.energyLevel) { finalEnergy = rec.energyLevel; }
+        if (mood === 'auto' && rec.mood) { finalMood = rec.mood; }
+        if (isInstrumental === 'auto' && rec.isInstrumental !== undefined) { finalInstrumental = rec.isInstrumental; }
         
         if (languageOverride === 'auto' && rec.language) { finalLanguage = rec.language; }
         if (structureType === 'auto' && rec.structureType) { finalStructure = rec.structureType; }
@@ -228,6 +261,9 @@ export default function App() {
         finalLanguage,
         finalStructure,
         finalDensity,
+        finalTempo,
+        finalEnergy,
+        finalMood,
         finalGear,
         mode
       );
@@ -238,6 +274,9 @@ export default function App() {
         vocalExtras: finalExtras,
         vocalGender: finalGender,
         vocalDensity: finalDensity,
+        tempo: finalTempo,
+        energyLevel: finalEnergy,
+        mood: finalMood,
         language: finalLanguage,
         structureType: finalStructure,
         studioGear: finalGear,
@@ -414,18 +453,20 @@ export default function App() {
                 className="ios-segmented flex-1 relative bg-black/20 p-1.5 rounded-2xl flex touch-pan-y select-none"
                 onPanEnd={(e, info) => {
                   const threshold = 20;
-                  if (info.offset.x > threshold && !isInstrumental) {
-                    setIsInstrumental(true);
-                  } else if (info.offset.x < -threshold && isInstrumental) {
-                    setIsInstrumental(false);
+                  if (info.offset.x > threshold) {
+                    if (isInstrumental === false) setIsInstrumental('auto');
+                    else if (isInstrumental === 'auto') setIsInstrumental(true);
+                  } else if (info.offset.x < -threshold) {
+                    if (isInstrumental === true) setIsInstrumental('auto');
+                    else if (isInstrumental === 'auto') setIsInstrumental(false);
                   }
                 }}
               >
                 <button
                   onClick={() => setIsInstrumental(false)}
-                  className={`flex-1 py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors font-semibold min-h-[44px] ios-segmented-item ${!isInstrumental ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`relative flex-1 py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors font-semibold min-h-[44px] ios-segmented-item ${isInstrumental === false ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
                 >
-                  {!isInstrumental && (
+                  {isInstrumental === false && (
                     <motion.div 
                       layoutId="segmented-active" 
                       className="ios-segmented-active will-change-transform transform-gpu"
@@ -433,13 +474,28 @@ export default function App() {
                     />
                   )}
                   <Mic className="w-4 h-4 relative z-10" />
-                  <span className="relative z-10">Se zpěvem</span>
+                  <span className="relative z-10 hidden sm:inline">Se zpěvem</span>
+                  <span className="relative z-10 sm:hidden">Zpěv</span>
+                </button>
+                <button
+                  onClick={() => setIsInstrumental('auto')}
+                  className={`relative flex-1 py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors font-semibold min-h-[44px] ios-segmented-item ${isInstrumental === 'auto' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                >
+                  {isInstrumental === 'auto' && (
+                    <motion.div 
+                      layoutId="segmented-active" 
+                      className="ios-segmented-active will-change-transform transform-gpu"
+                      transition={{ type: 'spring', bounce: 0.15, stiffness: 400, damping: 30 }}
+                    />
+                  )}
+                  <Wand2 className="w-4 h-4 relative z-10" />
+                  <span className="relative z-10">Auto</span>
                 </button>
                 <button
                   onClick={() => setIsInstrumental(true)}
-                  className={`flex-1 py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors font-semibold min-h-[44px] ios-segmented-item ${isInstrumental ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`relative flex-1 py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors font-semibold min-h-[44px] ios-segmented-item ${isInstrumental === true ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
                 >
-                  {isInstrumental && (
+                  {isInstrumental === true && (
                     <motion.div 
                       layoutId="segmented-active" 
                       className="ios-segmented-active will-change-transform transform-gpu"
@@ -447,7 +503,8 @@ export default function App() {
                     />
                   )}
                   <Music className="w-4 h-4 relative z-10" />
-                  <span className="relative z-10">Instrumental</span>
+                  <span className="relative z-10 hidden sm:inline">Instrumentální</span>
+                  <span className="relative z-10 sm:hidden">Instru</span>
                 </button>
               </motion.div>
 
@@ -464,7 +521,7 @@ export default function App() {
               >
                 <button
                   onClick={() => setMode('generate')}
-                  className={`flex-1 py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors font-semibold min-h-[44px] ios-segmented-item ${mode === 'generate' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`relative flex-1 py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors font-semibold min-h-[44px] ios-segmented-item ${mode === 'generate' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
                 >
                   {mode === 'generate' && (
                     <motion.div 
@@ -478,7 +535,7 @@ export default function App() {
                 </button>
                 <button
                   onClick={() => setMode('refine')}
-                  className={`flex-1 py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors font-semibold min-h-[44px] ios-segmented-item ${mode === 'refine' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`relative flex-1 py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors font-semibold min-h-[44px] ios-segmented-item ${mode === 'refine' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
                 >
                   {mode === 'refine' && (
                     <motion.div 
@@ -524,7 +581,7 @@ export default function App() {
               id="prompt"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder={isInstrumental ? "např. Epický orchestrální soundtrack pro sci-fi bitvu..." : "např. Písnička ve stylu Queen o pečení dortu..."}
+              placeholder={isInstrumental === true ? "např. Epický orchestrální soundtrack pro sci-fi bitvu..." : "např. Písnička ve stylu Queen o pečení dortu..."}
               className="w-full h-32 md:h-40 bg-black/30 border border-white/10 theme-glass-inner p-5 text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_50%,transparent)] focus:border-[color-mix(in_srgb,var(--primary)_50%,transparent)] transition-colors duration-500 resize-none text-[17px] shadow-inner leading-relaxed"
             />
             
@@ -644,6 +701,29 @@ export default function App() {
                 exit="exit"
                 className="grid gap-6 md:grid-cols-12 will-change-transform transform-gpu"
               >
+                {/* New Generation Button (Quick Reset) */}
+                <motion.div 
+                  variants={{
+                    hidden: { opacity: 0, y: 10 },
+                    visible: { opacity: 1, y: 0 }
+                  }}
+                  className="md:col-span-12 flex justify-end"
+                >
+                  <button
+                    onClick={() => {
+                      setResult(null);
+                      setAlbumArt(null);
+                      setPrompt('');
+                      setUserLyrics('');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm text-zinc-400 hover:text-white transition-all active:scale-95"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Nové generování (Vymazat)
+                  </button>
+                </motion.div>
+
                 {/* AI Choices Summary */}
                 {appliedSettings && (
                   <motion.div
@@ -686,6 +766,24 @@ export default function App() {
                         <span className="px-2.5 py-1 rounded-md text-xs" style={{ backgroundColor: `color-mix(in srgb, ${theme.aiPanelColor} 10%, transparent)`, border: `1px solid color-mix(in srgb, ${theme.aiPanelColor} 20%, transparent)`, color: `color-mix(in srgb, ${theme.aiPanelColor} 80%, white)` }}>
                           <span className="mr-1" style={{ color: `color-mix(in srgb, ${theme.aiPanelColor} 70%, transparent)` }}>Množství zpěvu:</span> 
                           <span className="font-medium">{appliedSettings.vocalDensity}</span>
+                        </span>
+                      )}
+                      {appliedSettings.tempo && appliedSettings.tempo !== 'auto' && (
+                        <span className="px-2.5 py-1 rounded-md text-xs" style={{ backgroundColor: `color-mix(in srgb, ${theme.aiPanelColor} 10%, transparent)`, border: `1px solid color-mix(in srgb, ${theme.aiPanelColor} 20%, transparent)`, color: `color-mix(in srgb, ${theme.aiPanelColor} 80%, white)` }}>
+                          <span className="mr-1" style={{ color: `color-mix(in srgb, ${theme.aiPanelColor} 70%, transparent)` }}>Tempo:</span> 
+                          <span className="font-medium">{appliedSettings.tempo}</span>
+                        </span>
+                      )}
+                      {appliedSettings.energyLevel && appliedSettings.energyLevel !== 'auto' && (
+                        <span className="px-2.5 py-1 rounded-md text-xs" style={{ backgroundColor: `color-mix(in srgb, ${theme.aiPanelColor} 10%, transparent)`, border: `1px solid color-mix(in srgb, ${theme.aiPanelColor} 20%, transparent)`, color: `color-mix(in srgb, ${theme.aiPanelColor} 80%, white)` }}>
+                          <span className="mr-1" style={{ color: `color-mix(in srgb, ${theme.aiPanelColor} 70%, transparent)` }}>Síla:</span> 
+                          <span className="font-medium">{appliedSettings.energyLevel}</span>
+                        </span>
+                      )}
+                      {appliedSettings.mood && appliedSettings.mood !== 'auto' && (
+                        <span className="px-2.5 py-1 rounded-md text-xs" style={{ backgroundColor: `color-mix(in srgb, ${theme.aiPanelColor} 10%, transparent)`, border: `1px solid color-mix(in srgb, ${theme.aiPanelColor} 20%, transparent)`, color: `color-mix(in srgb, ${theme.aiPanelColor} 80%, white)` }}>
+                          <span className="mr-1" style={{ color: `color-mix(in srgb, ${theme.aiPanelColor} 70%, transparent)` }}>Nálada:</span> 
+                          <span className="font-medium">{appliedSettings.mood}</span>
                         </span>
                       )}
                       {appliedSettings.language && appliedSettings.language !== 'auto' && (
@@ -845,9 +943,9 @@ export default function App() {
                       </p>
                     </div>
                     <div className="mt-3 flex items-center justify-between text-[10px] text-zinc-500">
-                      <span>Max 1000 chars</span>
-                      <span className={result.styleBox.length > 1000 ? 'text-red-400' : 'text-emerald-400'}>
-                        {result.styleBox.length}/1000
+                      <span>Max 250 znaků</span>
+                      <span className={result.styleBox.length > 250 ? 'text-amber-500' : 'text-emerald-400'}>
+                        {result.styleBox.length}/250
                       </span>
                     </div>
                   </div>
@@ -1296,9 +1394,10 @@ export default function App() {
                       {[
                         { value: 'auto', label: 'Auto' },
                         { value: 'standard', label: 'Standard' },
-                        { value: 'studio', label: 'Studio' },
-                        { value: 'cinematic', label: 'Film' },
-                        { value: 'live', label: 'Live' },
+                        { value: 'studio', label: 'Studio (Zcela čisté)' },
+                        { value: 'cinematic', label: 'Film (Epické)' },
+                        { value: 'live', label: 'Live (Hala/Aréna)' },
+                        { value: 'festival', label: 'Festival (Venku)' },
                       ].map((option) => (
                         <button
                           key={option.value}
@@ -1355,7 +1454,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  {!isInstrumental && (
+                  {isInstrumental !== true && (
                     <div className="p-3 space-y-3">
                       <div className="flex items-center gap-3 mb-0">
                         <Users className="w-5 h-5 theme-primary-text" />
@@ -1367,6 +1466,7 @@ export default function App() {
                           { value: 'none', label: 'Nic' },
                           { value: 'choir', label: 'Sbor' },
                           { value: 'harmonies', label: 'Dvojhlas' },
+                          { value: 'gang_vocals', label: 'Skandování' },
                           { value: 'intimate', label: 'Blízko' },
                           { value: 'vocoder', label: 'Vocoder' },
                           { value: 'autotune', label: 'Tune' },
@@ -1390,7 +1490,7 @@ export default function App() {
                   )}
                 </div>
 
-                {!isInstrumental && (
+                {isInstrumental !== true && (
                   <div className="bg-white/[0.03] border border-white/[0.05] rounded-2xl overflow-hidden shadow-sm backdrop-blur-md divide-y divide-white/10">
                     <div className="p-3 space-y-3">
                       <div className="flex items-center gap-3 mb-0">
@@ -1478,6 +1578,94 @@ export default function App() {
                     </div>
                   </div>
                 )}
+
+                <div className="bg-white/[0.03] border border-white/[0.05] rounded-2xl overflow-hidden shadow-sm backdrop-blur-md divide-y divide-white/10 mt-6">
+                  <div className="p-3 space-y-3">
+                    <div className="flex items-center gap-3 mb-0">
+                      <ListOrdered className="w-5 h-5 theme-primary-text" />
+                      <span className="text-base text-zinc-100 tracking-tight">Tempo (Rychlost)</span>
+                    </div>
+                      <div className="flex flex-col sm:flex-row flex-wrap gap-1.5 bg-black/30 p-1 rounded-xl border border-white/5 shadow-inner">
+                        {[
+                          { value: 'auto', label: 'Auto' },
+                          { value: 'slow', label: 'Pomalé (Balada)' },
+                          { value: 'mid', label: 'Střední (Pochod)' },
+                          { value: 'fast', label: 'Rychlé (Energie)' },
+                          { value: 'extreme', label: 'Extrémní (Speed)' },
+                        ].map((option) => (
+                          <button
+                            key={option.value}
+                            onClick={() => setTempo(option.value as Tempo)}
+                            className={`flex-1 sm:min-w-[calc(50%-4px)] py-1 px-2 rounded-lg text-sm font-medium transition-all min-h-[34px] ${
+                              tempo === option.value
+                                ? 'bg-zinc-800/90 text-white shadow-sm ring-1 ring-white/10'
+                                : 'text-zinc-400 hover:text-zinc-200 active:scale-95'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="p-3 space-y-3">
+                      <div className="flex items-center gap-3 mb-0">
+                        <Sparkles className="w-5 h-5 theme-primary-text" />
+                        <span className="text-base text-zinc-100 tracking-tight">Celková síla (Měřítko)</span>
+                      </div>
+                      <div className="flex flex-col sm:flex-row flex-wrap gap-1.5 bg-black/30 p-1 rounded-xl border border-white/5 shadow-inner">
+                        {[
+                          { value: 'auto', label: 'Auto' },
+                          { value: 'intimate', label: 'Intimní (Akustika)' },
+                          { value: 'standard', label: 'Standardní' },
+                          { value: 'stadium', label: 'Stadionová (Aréna)' },
+                          { value: 'cinematic', label: 'Filmová (Epická)' },
+                        ].map((option) => (
+                          <button
+                            key={option.value}
+                            onClick={() => setEnergyLevel(option.value as EnergyLevel)}
+                            className={`flex-1 sm:min-w-[calc(50%-4px)] py-1 px-2 rounded-lg text-sm font-medium transition-all min-h-[34px] ${
+                              energyLevel === option.value
+                                ? 'bg-zinc-800/90 text-white shadow-sm ring-1 ring-white/10'
+                                : 'text-zinc-400 hover:text-zinc-200 active:scale-95'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="p-3 space-y-3">
+                      <div className="flex items-center gap-3 mb-0">
+                        <Palette className="w-5 h-5 theme-primary-text" />
+                        <span className="text-base text-zinc-100 tracking-tight">Nálada (Emoce)</span>
+                      </div>
+                      <div className="flex flex-col sm:flex-row flex-wrap gap-1.5 bg-black/30 p-1 rounded-xl border border-white/5 shadow-inner">
+                        {[
+                          { value: 'auto', label: 'Auto' },
+                          { value: 'dark', label: 'Temná' },
+                          { value: 'melancholic', label: 'Melancholická' },
+                          { value: 'uplifting', label: 'Pozitivní' },
+                          { value: 'aggressive', label: 'Agresivní' },
+                          { value: 'epic', label: 'Epická' },
+                          { value: 'romantic', label: 'Romantická' },
+                        ].map((option) => (
+                          <button
+                            key={option.value}
+                            onClick={() => setMood(option.value as Mood)}
+                            className={`flex-1 sm:min-w-[calc(33%-4px)] py-1 px-2 rounded-lg text-sm font-medium transition-all min-h-[34px] ${
+                              mood === option.value
+                                ? 'bg-zinc-800/90 text-white shadow-sm ring-1 ring-white/10'
+                                : 'text-zinc-400 hover:text-zinc-200 active:scale-95'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 
                 <motion.button
                   onClick={() => setIsSettingsOpen(false)}

@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer utilities {
+  .ios-segmented {
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ios-segmented-item {
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ios-segmented-active {
+    position: absolute;
+    inset: 0;
+    background: color-mix(in srgb, var(--primary) 20%, rgba(255, 255, 255, 0.1));
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  .drag-only-slider {
+    touch-action: none;
+  }
+}

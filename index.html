@@ -10,6 +10,19 @@
     <meta name="theme-color" content="#09090b" />
     <link rel="manifest" href="/manifest.json" />
     <title>Suno Prompt Engineer</title>
+    <script>
+      try {
+        let originalFetch = window.fetch;
+        Object.defineProperty(window, 'fetch', {
+          configurable: true,
+          enumerable: true,
+          get: function() { return originalFetch; },
+          set: function(val) { originalFetch = val; }
+        });
+      } catch(e) {
+        console.error("Failed to redefine fetch:", e);
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
